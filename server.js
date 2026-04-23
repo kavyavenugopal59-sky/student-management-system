@@ -1,5 +1,5 @@
 const express = require("express");
-const sqlite3 = require("sqlite3").verbose();
+const Database = require("better-sqlite3");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 
@@ -8,17 +8,11 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
-
-const db = new sqlite3.Database("./database.db", (err) => {
-    if (err) {
-        console.error("DB Error:", err);
-    } else {
-        console.log("Connected to SQLite DB");
-    }
-});
+const db = new Database("database.db");
+console.log("Connected to SQLite DB");
 
 // Create table
-db.run(`
+db.prepare(`
 CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
@@ -26,79 +20,53 @@ CREATE TABLE IF NOT EXISTS students (
     department TEXT,
     marks INTEGER
 )
-`);
+`).run();
 
-// Home test
+// HOME
 app.get("/", (req, res) => {
     res.send("Backend working!");
 });
 
-
-// ✅ ADD STUDENT API
+// ➕ ADD
 app.post("/add", (req, res) => {
     const { name, roll, department, marks } = req.body;
 
-    db.run(
-        "INSERT INTO students (name, roll, department, marks) VALUES (?, ?, ?, ?)",
-        [name, roll, department, marks],
-        function (err) {
-            if (err) {
-                res.send("Error adding student");
-            } else {
-                res.send("Student added successfully");
-            }
-        }
-    );
+    db.prepare(
+        "INSERT INTO students (name, roll, department, marks) VALUES (?, ?, ?, ?)"
+    ).run(name, roll, department, marks);
+
+    res.send("Student added successfully");
 });
 
-
-// ✅ VIEW STUDENTS API
+// 📋 VIEW
 app.get("/students", (req, res) => {
-    db.all("SELECT * FROM students", [], (err, rows) => {
-        if (err) {
-            res.send("Error fetching data");
-        } else {
-            res.json(rows);
-        }
-    });
+    const rows = db.prepare("SELECT * FROM students").all();
+    res.json(rows);
 });
 
-
-// ✅ DELETE API (MOVE HERE)
+// ❌ DELETE
 app.delete("/delete/:id", (req, res) => {
     const id = req.params.id;
 
-     console.log("DELETE CALLED", id);  // 👈 add this
+    db.prepare("DELETE FROM students WHERE id=?").run(id);
 
-    db.run("DELETE FROM students WHERE id=?", [id], function (err) {
-        if (err) {
-            console.log(err);
-            res.send("Error deleting");
-        } else {
-            res.send("Student deleted");
-        }
-    });
+    res.send("Student deleted");
 });
 
-
-// 🚀 START SERVER (ALWAYS LAST)
-app.listen(3000, () => {
-    console.log("Server running on http://localhost:3000");
-});
-
+// ✏️ UPDATE
 app.put("/update/:id", (req, res) => {
     const id = req.params.id;
     const { name, roll, department, marks } = req.body;
 
-    db.run(
-        "UPDATE students SET name=?, roll=?, department=?, marks=? WHERE id=?",
-        [name, roll, department, marks, id],
-        function (err) {
-            if (err) {
-                res.send("Error updating");
-            } else {
-                res.send("Student updated");
-            }
-        }
-    );
+    db.prepare(
+        "UPDATE students SET name=?, roll=?, department=?, marks=? WHERE id=?"
+    ).run(name, roll, department, marks, id);
+
+    res.send("Student updated");
+});
+
+// 🚀 SERVER (Render compatible)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log("Server running on port " + PORT);
 });
