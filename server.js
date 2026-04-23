@@ -8,7 +8,14 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
-const db = new sqlite3.Database("database.db");
+
+const db = new sqlite3.Database("./database.db", (err) => {
+    if (err) {
+        console.error("DB Error:", err);
+    } else {
+        console.log("Connected to SQLite DB");
+    }
+});
 
 // Create table
 db.run(`
